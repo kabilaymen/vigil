@@ -1,0 +1,22 @@
+{
+  "uid": "vigil-gateway",
+  "title": "Vigil — Gateway",
+  "schemaVersion": 39,
+  "refresh": "5s",
+  "time": {"from": "now-15m", "to": "now"},
+  "panels": [
+    {"type": "timeseries", "title": "Ingest rate (msg/s)", "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+     "targets": [{"expr": "sum by (kind) (rate(vigil_gateway_messages_received_total[1m]))", "legendFormat": "{{kind}}"}]},
+    {"type": "timeseries", "title": "Produce latency MQTT → Kafka ack", "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+     "fieldConfig": {"defaults": {"unit": "s"}},
+     "targets": [
+       {"expr": "histogram_quantile(0.5, sum by (le) (rate(vigil_gateway_produce_latency_seconds_bucket[1m])))", "legendFormat": "p50"},
+       {"expr": "histogram_quantile(0.99, sum by (le) (rate(vigil_gateway_produce_latency_seconds_bucket[1m])))", "legendFormat": "p99"}]},
+    {"type": "stat", "title": "Produce errors (5m)", "gridPos": {"x": 0, "y": 8, "w": 6, "h": 5},
+     "targets": [{"expr": "sum(increase(vigil_gateway_produce_errors_total[5m]))"}]},
+    {"type": "stat", "title": "Malformed (5m)", "gridPos": {"x": 6, "y": 8, "w": 6, "h": 5},
+     "targets": [{"expr": "sum(increase(vigil_gateway_malformed_total[5m]))"}]},
+    {"type": "timeseries", "title": "Status events (online/offline)", "gridPos": {"x": 12, "y": 8, "w": 12, "h": 5},
+     "targets": [{"expr": "rate(vigil_gateway_messages_received_total{kind=\"status\"}[1m])", "legendFormat": "status"}]}
+  ]
+}
