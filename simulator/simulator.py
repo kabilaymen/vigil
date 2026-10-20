@@ -48,6 +48,7 @@ class Machine:
         self.broker, self.port = broker, port
         self.client = None
         self.alive = False
+        self.stalled_until = 0.0
 
     def topic(self, kind: str) -> str:
         return f"vigil/machines/{self.id}/{kind}"
@@ -75,8 +76,14 @@ class Machine:
         if sock:
             sock.close()
 
+    def stall(self, seconds: float) -> None:
+        """Stop publishing while keeping the MQTT session open: keepalives are sent by
+        paho's network thread, so the broker never notices. Only heartbeat analysis can."""
+        log.info("stalling %s for %.0fs", self.id, seconds)
+        self.stalled_until = time.monotonic() + seconds
+
     def tick(self) -> None:
-        if not self.alive:
+        if not self.alive or time.monotonic() < self.stalled_until:
             return
         # bounded random walk around the nominal values
         nominal_t, nominal_p = MACHINE_TYPES[self.type]
@@ -103,6 +110,8 @@ def main() -> None:
     p.add_argument("--rate", type=float, default=1.0, help="telemetry messages per second per machine")
     p.add_argument("--crash-every", type=float, default=0, help="crash a random machine every N seconds (0 = never)")
     p.add_argument("--recover-after", type=float, default=20, help="seconds before a crashed machine reconnects")
+    p.add_argument("--stall-every", type=float, default=0, help="stall a random machine every N seconds (0 = never)")
+    p.add_argument("--stall-for", type=float, default=15, help="duration of a stall in seconds")
     args = p.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
@@ -126,6 +135,7 @@ def main() -> None:
 
     period = 1.0 / args.rate
     next_crash = time.monotonic() + args.crash_every if args.crash_every else float("inf")
+    next_stall = time.monotonic() + args.stall_every if args.stall_every else float("inf")
     recover_at: dict[str, float] = {}
     while not stop.is_set():
         start = time.monotonic()
@@ -136,6 +146,9 @@ def main() -> None:
             victim.crash()
             recover_at[victim.id] = start + args.recover_after
             next_crash = start + args.crash_every
+        if start >= next_stall:
+            random.choice([m for m in machines if m.alive]).stall(args.stall_for)
+            next_stall = start + args.stall_every
         for m in machines:
             if m.id in recover_at and start >= recover_at[m.id]:
                 del recover_at[m.id]

@@ -15,6 +15,18 @@ jobs:
           go-version-file: gateway/go.mod
       - run: go vet ./...
       - run: go test -race ./...
+  detector:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: detector
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: detector/go.mod
+      - run: go vet ./...
+      - run: go test -race ./...
   simulator:
     runs-on: ubuntu-latest
     steps:

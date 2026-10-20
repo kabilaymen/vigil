@@ -47,9 +47,21 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  detector:
+    build: ./detector
+    environment:
+      KAFKA_BROKERS: kafka:9092
+      PHI_THRESHOLD: "8"
+    ports:
+      - "9101:9101"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+
   simulator:
     build: ./simulator
-    command: ["--broker", "mosquitto", "--machines", "50", "--rate", "2", "--crash-every", "45"]
+    command: ["--broker", "mosquitto", "--machines", "50", "--rate", "2", "--crash-every", "45", "--stall-every", "30"]
     depends_on:
       - mosquitto
       - gateway

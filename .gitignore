@@ -3,3 +3,4 @@ __pycache__/
 .venv/
 /gateway/gateway
 *.exe
+notes/

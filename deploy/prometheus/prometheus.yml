@@ -4,3 +4,6 @@ scrape_configs:
   - job_name: gateway
     static_configs:
       - targets: ["gateway:9100"]
+  - job_name: detector
+    static_configs:
+      - targets: ["detector:9101"]
