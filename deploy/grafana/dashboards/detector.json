@@ -100,7 +100,7 @@
     "w": 6,
     "h": 8
    },
-   "description": "Share of phi-accrual alerts raised within 1.5 s of the machine's last message. The slow ones are machines that stall right after reconnecting, while the detector relearns their rhythm.",
+   "description": "Share of phi-accrual alerts raised within 1.5 s of the machine's last message. Slower ones can happen when a machine stalls just after reconnecting: the detector does not judge a machine until it has relearned its rhythm (10 heartbeats).",
    "targets": [
     {
      "expr": "sum(increase(vigil_detector_detection_seconds_bucket{type=\"suspected\",le=\"1.5\"}[1h])) / sum(increase(vigil_detector_detection_seconds_count{type=\"suspected\"}[1h]))",
