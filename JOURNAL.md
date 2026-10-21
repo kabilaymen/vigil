@@ -67,6 +67,20 @@ a partition with nothing to read for 5 s is marked idle so that it cannot hold e
 With that change the crash test passes with the real 2 s lateness (542 crashes over 50 seeds, no
 record late, identical rows).
 
+Deployed, it failed twice on the first day:
+
+- `create_hypertable` did not exist. I had mounted my init script directory over the image's
+  `/docker-entrypoint-initdb.d`, which hid the image's own script that installs the extension. Now
+  only the file is mounted, and the processor also runs `CREATE EXTENSION IF NOT EXISTS`.
+- **Only 5 machines of 50 ended up in the table.** On its first start the processor caught up
+  80 minutes of retained data, and Kafka served long runs of one partition before the others. The
+  per-partition watermark only counted partitions already read, so buckets closed on the first
+  partition alone and every other machine's records were dropped as late. An assigned partition
+  that has not been read yet now holds the watermark, and a partition is idle only once read to its
+  end (high watermark) — or after 30 s with no fetch at all. The crash test missed it because it
+  read all partitions in lockstep, one record at a time; it now reads them in random batches, like
+  Kafka, and fails without the fix (as does a test that replays one partition after another).
+
 The SQL runs against a real TimescaleDB in a test (`TEST_DATABASE_URL`): idempotent schema, upsert,
 progress read back. Grafana reads through a read-only role created at database initialisation.
 

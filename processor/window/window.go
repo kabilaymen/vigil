@@ -8,8 +8,11 @@
 // passes its end: a partition that is read faster than another (fewer
 // machines, or consumed first after a restart) cannot close buckets the slower
 // one is still filling. A record for a closed bucket is late and counted, not
-// aggregated. A partition with nothing to read is marked idle by the caller so
-// that it does not hold every bucket open.
+// aggregated. A partition the caller assigned but has not read from yet holds
+// the watermark too: when catching up, Kafka often returns a long run of one
+// partition first, and closing buckets on it alone would drop the others'
+// records as late. A partition with nothing left to read is marked idle by
+// the caller so that it does not hold every bucket open.
 //
 // Buckets are aligned on multiples of the width, so every machine's bucket
 // [t, t+width) closes at the same moment: the processor writes one bucket for
@@ -48,7 +51,7 @@ type Closed struct {
 type Aggregator struct {
 	width    time.Duration
 	lateness time.Duration
-	maxSeen  map[int32]time.Time // per active partition
+	maxSeen  map[int32]time.Time // per active partition; zero = assigned, nothing read yet
 	closedTo time.Time           // buckets starting before this are closed
 	open     map[time.Time]map[string]*acc
 	// firstOffset[bucket][partition]: offset of the first record of that open
@@ -67,6 +70,14 @@ func New(width, lateness time.Duration) *Aggregator {
 	return &Aggregator{width: width, lateness: lateness,
 		open: map[time.Time]map[string]*acc{}, firstOffset: map[time.Time]map[int32]int64{}, nextOffset: map[int32]int64{},
 		skipBefore: map[int32]time.Time{}, machinePart: map[string]int32{}, maxSeen: map[int32]time.Time{}}
+}
+
+// Assign registers a partition this aggregator is about to consume: until a
+// record arrives from it (or it is marked idle), no bucket closes.
+func (a *Aggregator) Assign(partition int32) {
+	if _, ok := a.maxSeen[partition]; !ok {
+		a.maxSeen[partition] = time.Time{}
+	}
 }
 
 // Resume tells the aggregator that, for this partition, buckets up to and
@@ -108,8 +119,6 @@ func (a *Aggregator) Add(partition int32, offset int64, machine string, at time.
 	}
 	if at.After(a.maxSeen[partition]) {
 		a.maxSeen[partition] = at
-	} else if _, ok := a.maxSeen[partition]; !ok {
-		a.maxSeen[partition] = at
 	}
 	return a.closeUpTo(a.watermark())
 }
@@ -135,8 +144,8 @@ func (a *Aggregator) watermark() time.Time {
 			low, first = t, false
 		}
 	}
-	if first {
-		return time.Time{} // nothing active: close nothing
+	if first || low.IsZero() {
+		return time.Time{} // nothing active, or a partition not read yet: close nothing
 	}
 	return low.Add(-a.lateness)
 }

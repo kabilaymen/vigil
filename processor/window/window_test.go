@@ -56,6 +56,35 @@ func TestIdlePartitionDoesNotHoldBucketsOpen(t *testing.T) {
 	}
 }
 
+// TestCatchUpOnePartitionAtATime: the production bug. Catching up, the
+// processor read a long run of one partition before the others; buckets
+// closed on that partition alone and the other machines' records were dropped
+// as late (only 5 machines of 50 ended up in the table).
+func TestCatchUpOnePartitionAtATime(t *testing.T) {
+	a := New(10*time.Second, 2*time.Second)
+	for p := int32(0); p < 3; p++ {
+		a.Assign(p)
+	}
+	var closed []Closed
+	for p := int32(0); p < 3; p++ { // each partition entirely, one after the other
+		for i := 0; i < 60; i++ {
+			at := t0.Add(time.Duration(i) * time.Second)
+			closed = append(closed, a.Add(p, int64(i), fmt.Sprintf("m%d", p), at, 1, 1)...)
+		}
+	}
+	if a.Late != 0 {
+		t.Fatalf("%d records dropped as late", a.Late)
+	}
+	for _, c := range closed {
+		if len(c.Rows) != 3 {
+			t.Fatalf("bucket %v closed with %d machines, want 3", c.Bucket, len(c.Rows))
+		}
+	}
+	if len(closed) < 5 {
+		t.Fatalf("only %d buckets closed", len(closed))
+	}
+}
+
 func TestResumeOffsetsPointAtOldestOpenBucket(t *testing.T) {
 	a := New(10*time.Second, 2*time.Second)
 	a.Add(0, 10, "m1", t0.Add(1*time.Second), 1, 1)
@@ -133,25 +162,31 @@ func run(d *db, parts map[int32][]record, budget int) (done bool) {
 	pos := map[int32]int64{}
 	for p := range parts {
 		pos[p] = d.offsets[p]
+		a.Assign(p)
 	}
+	// Like Kafka fetches: a random partition, a random-sized batch of it. On a
+	// restart, one partition may well be read for a long while before another.
+	r := rand.New(rand.NewSource(int64(budget)))
 	for budget > 0 {
-		progressed := false
+		var left []int32
 		for p := int32(0); p < 3; p++ {
-			if pos[p] >= int64(len(parts[p])) {
-				continue
+			if pos[p] < int64(len(parts[p])) {
+				left = append(left, p)
 			}
+		}
+		if len(left) == 0 {
+			return true
+		}
+		p := left[r.Intn(len(left))]
+		for n := 1 + r.Intn(300); n > 0 && budget > 0 && pos[p] < int64(len(parts[p])); n-- {
 			rec := parts[p][pos[p]]
 			pos[p]++
-			progressed = true
 			budget--
 			for _, c := range a.Add(rec.p, rec.off, rec.m, rec.at, rec.temp, rec.speed) {
 				d.write(c, a)
 			}
 			d.late += a.Late
 			a.Late = 0
-		}
-		if !progressed {
-			return true
 		}
 	}
 	return false

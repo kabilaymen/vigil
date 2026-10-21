@@ -103,6 +103,8 @@ type processor struct {
 	mu       sync.Mutex
 	agg      *window.Aggregator
 	lastRead map[int32]time.Time // wall time of the last record per partition
+	next     map[int32]int64     // next offset to read, per partition
+	high     map[int32]int64     // high watermark (end of the partition) from the last fetch
 	idle     time.Duration
 	st       *store
 	log      *slog.Logger
@@ -119,6 +121,11 @@ func (p *processor) assigned(ctx context.Context, cl *kgo.Client, assigned map[s
 		}
 		offsets := map[int32]kgo.EpochOffset{}
 		p.mu.Lock()
+		for _, part := range parts {
+			// Hold every bucket open until this partition is read (or found empty).
+			p.agg.Assign(part)
+			p.lastRead[part] = time.Now()
+		}
 		for part, pr := range prog {
 			offsets[part] = kgo.EpochOffset{Epoch: -1, Offset: pr.nextOffset}
 			p.agg.Resume(part, pr.lastBucket)
@@ -138,6 +145,8 @@ func (p *processor) revoked(_ context.Context, _ *kgo.Client, revoked map[string
 		for _, part := range parts {
 			p.agg.Forget(part)
 			delete(p.lastRead, part)
+			delete(p.next, part)
+			delete(p.high, part)
 		}
 	}
 }
@@ -148,8 +157,12 @@ func (p *processor) consume(fetches kgo.Fetches) ([]window.Closed, map[int32]int
 	defer p.mu.Unlock()
 	var closed []window.Closed
 	late, replayed := p.agg.Late, p.agg.Replayed
+	fetches.EachPartition(func(fp kgo.FetchTopicPartition) {
+		p.high[fp.Partition] = fp.HighWatermark
+	})
 	fetches.EachRecord(func(r *kgo.Record) {
 		p.lastRead[r.Partition] = time.Now()
+		p.next[r.Partition] = r.Offset + 1
 		at := ingestTime(r)
 		consumeLag.Set(time.Since(at).Seconds())
 		if header(r, "kind") != "telemetry" {
@@ -165,9 +178,14 @@ func (p *processor) consume(fetches kgo.Fetches) ([]window.Closed, map[int32]int
 		closed = append(closed, p.agg.Add(r.Partition, r.Offset, string(r.Key), at, t.Params.Temperature, t.Params.Throughput)...)
 	})
 	// A partition with nothing to read (all its machines down) must not hold
-	// every bucket open.
+	// every bucket open. "Nothing to read" means caught up to its end, not
+	// just quiet for a moment: while catching up, Kafka may serve one
+	// partition for a while before another. Without any fetch information, a
+	// longer silence is required.
 	for part, at := range p.lastRead {
-		if time.Since(at) > p.idle {
+		high, known := p.high[part]
+		caughtUp := known && p.next[part] >= high
+		if quiet := time.Since(at); (caughtUp && quiet > p.idle) || quiet > 6*p.idle {
 			closed = append(closed, p.agg.MarkIdle(part)...)
 		}
 	}
@@ -211,6 +229,8 @@ func main() {
 	p := &processor{
 		agg:      window.New(10*time.Second, 2*time.Second),
 		lastRead: map[int32]time.Time{},
+		next:     map[int32]int64{},
+		high:     map[int32]int64{},
 		idle:     5 * time.Second,
 		st:       st,
 		log:      log,
