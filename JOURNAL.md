@@ -45,8 +45,31 @@ Choices that matter for false positives:
 Observed locally (50 machines, 2 msg/s, φ ≥ 8): a stalled machine is suspected after ~1.2 s of
 silence (nominal interval 0.5 s); a crashed one is reported via its Last Will in ~1 s.
 
+## 3. Stream processor: 10-second history in TimescaleDB
+
+The processor aggregates telemetry per machine into aligned 10-second buckets and writes them to a
+hypertable. The hard part is restarts: Kafka replays from the last committed offset, and rewriting
+a bucket from a partial replay would replace a correct aggregate with a smaller one. So the offsets
+are not committed to Kafka at all: each closed bucket is written in one transaction together with,
+per partition, the offset of the first record of the oldest bucket still open and the last bucket
+written. On start the consumer seeks there and skips records of buckets already written.
+
+The aggregator is pure (no Kafka, no database), which made one test possible: crash the processor
+at random points, restart it from what the "database" holds, and compare with an uninterrupted
+run. Two deliberate mutations (resume from the last offset read; do not skip written buckets) make
+it fail — the second rewrites a 40-record bucket with 3 records, the exact bug the design avoids.
+
+That test also found a real design flaw. My first watermark was the highest event time seen across
+all partitions: a partition with fewer machines, read at the same rate, runs ahead in event time
+and closed buckets the others were still filling — 2,967 records dropped as "late" in a run with
+no crash at all. The watermark is now the lowest of the per-partition watermarks (as in Flink), and
+a partition with nothing to read for 5 s is marked idle so that it cannot hold every bucket open.
+With that change the crash test passes with the real 2 s lateness (542 crashes over 50 seeds, no
+record late, identical rows).
+
+The SQL runs against a real TimescaleDB in a test (`TEST_DATABASE_URL`): idempotent schema, upsert,
+progress read back. Grafana reads through a read-only role created at database initialisation.
+
 ## Not done yet
 
 - No load test: the numbers above are from a 50-machine fleet, not a stress run.
-- Stream processor with windowed aggregates in TimescaleDB.
-- Deployment with a public read-only dashboard.

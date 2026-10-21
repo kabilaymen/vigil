@@ -6,3 +6,15 @@ datasources:
     access: proxy
     url: http://prometheus:9090
     isDefault: true
+  - name: TimescaleDB
+    uid: timescaledb
+    type: grafana-postgresql-datasource
+    url: timescaledb:5432
+    user: grafana_ro
+    secureJsonData:
+      password: $GRAFANA_DB_PASSWORD
+    jsonData:
+      database: vigil
+      sslmode: disable
+      timescaledb: true
+      postgresVersion: 1600

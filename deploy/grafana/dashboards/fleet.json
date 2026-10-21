@@ -1,0 +1,243 @@
+{
+ "uid": "vigil-fleet",
+ "title": "Vigil — Fleet history",
+ "schemaVersion": 39,
+ "refresh": "10s",
+ "time": {
+  "from": "now-30m",
+  "to": "now"
+ },
+ "panels": [
+  {
+   "type": "text",
+   "title": "",
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 3
+   },
+   "options": {
+    "mode": "markdown",
+    "content": "**Fleet history**: the processor aggregates every machine's telemetry into 10-second buckets in TimescaleDB (count, temperature avg/min/max, throughput), writing each bucket together with the Kafka offsets to resume from, so a crash never leaves a bucket half written. [Code](https://github.com/kabilaymen/vigil)"
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Temperature, 10 s average (8 hottest machines)",
+   "datasource": {
+    "type": "grafana-postgresql-datasource",
+    "uid": "timescaledb"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 3,
+    "w": 16,
+    "h": 9
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "grafana-postgresql-datasource",
+      "uid": "timescaledb"
+     },
+     "refId": "A",
+     "format": "time_series",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT bucket AS time, machine AS metric, temp_avg AS value FROM machine_metrics_10s\nWHERE $__timeFilter(bucket) AND machine IN (\n  SELECT machine FROM machine_metrics_10s WHERE $__timeFilter(bucket)\n  GROUP BY machine ORDER BY max(temp_max) DESC LIMIT 8)\nORDER BY 1"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "celsius"
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "table",
+   "title": "Hottest machines, last 5 minutes",
+   "datasource": {
+    "type": "grafana-postgresql-datasource",
+    "uid": "timescaledb"
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 3,
+    "w": 8,
+    "h": 9
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "grafana-postgresql-datasource",
+      "uid": "timescaledb"
+     },
+     "refId": "A",
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT machine, round(max(temp_max)::numeric, 1) AS \"max °C\", round(avg(throughput_avg)::numeric, 0) AS \"avg ppm\"\nFROM machine_metrics_10s WHERE bucket > now() - interval '5 minutes'\nGROUP BY machine ORDER BY 2 DESC LIMIT 10"
+    }
+   ]
+  },
+  {
+   "type": "timeseries",
+   "title": "Fleet throughput (sum of machine averages)",
+   "datasource": {
+    "type": "grafana-postgresql-datasource",
+    "uid": "timescaledb"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 12,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "grafana-postgresql-datasource",
+      "uid": "timescaledb"
+     },
+     "refId": "A",
+     "format": "time_series",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT bucket AS time, sum(throughput_avg) AS \"parts/min\" FROM machine_metrics_10s\nWHERE $__timeFilter(bucket) GROUP BY 1 ORDER BY 1"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Machines reporting per bucket",
+   "datasource": {
+    "type": "grafana-postgresql-datasource",
+    "uid": "timescaledb"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 20,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "grafana-postgresql-datasource",
+      "uid": "timescaledb"
+     },
+     "refId": "A",
+     "format": "time_series",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT bucket AS time, count(*) AS machines FROM machine_metrics_10s\nWHERE $__timeFilter(bucket) GROUP BY 1 ORDER BY 1"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "description": "Drops when the simulator crashes or stalls machines."
+  },
+  {
+   "type": "timeseries",
+   "title": "Processor: records and rows",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 12,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "A",
+     "expr": "rate(vigil_processor_rows_written_total[1m])",
+     "legendFormat": "rows written/s"
+    },
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "B",
+     "expr": "rate(vigil_processor_late_records_total[5m])",
+     "legendFormat": "late records/s (dropped)"
+    },
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "C",
+     "expr": "rate(vigil_processor_replayed_records_total[5m])",
+     "legendFormat": "replayed after restart/s"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "Processor: freshness and lag",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 20,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "A",
+     "expr": "time() - vigil_processor_last_bucket_timestamp_seconds",
+     "legendFormat": "age of the newest bucket written"
+    },
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "refId": "B",
+     "expr": "vigil_processor_consume_lag_seconds",
+     "legendFormat": "consume lag"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "description": "A bucket is written ~12 s after it starts: 10 s width plus 2 s of allowed lateness."
+  }
+ ]
+}

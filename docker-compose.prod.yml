@@ -47,6 +47,22 @@ services:
     mem_limit: 128m
     logging: *logging
 
+  timescaledb:
+    ports: !reset []
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set it in .env}
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:?set it in .env}
+    command: ["postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=20"]
+    restart: unless-stopped
+    mem_limit: 384m
+    logging: *logging
+
+  processor:
+    image: ghcr.io/kabilaymen/vigil-processor:latest # built by CI
+    ports: !reset []
+    mem_limit: 64m
+    logging: *logging
+
   prometheus:
     ports: !reset []
     command:
@@ -66,6 +82,7 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set it in .env}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/detector.json
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:?set it in .env}
       GF_ANALYTICS_REPORTING_ENABLED: "false"
     restart: unless-stopped
     mem_limit: 256m

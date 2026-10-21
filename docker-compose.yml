@@ -67,6 +67,39 @@ services:
       - gateway
     restart: unless-stopped
 
+  timescaledb:
+    image: timescale/timescaledb:2.17.2-pg16
+    environment:
+      POSTGRES_USER: vigil
+      POSTGRES_DB: vigil
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vigil}
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:-grafana}
+      TS_TUNE_MEMORY: 256MB
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./deploy/timescaledb:/docker-entrypoint-initdb.d:ro
+      - timescaledb:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vigil -d vigil"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  processor:
+    build: ./processor
+    environment:
+      KAFKA_BROKERS: kafka:9092
+      DATABASE_URL: postgres://vigil:${POSTGRES_PASSWORD:-vigil}@timescaledb:5432/vigil
+    ports:
+      - "9102:9102"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      timescaledb:
+        condition: service_healthy
+    restart: unless-stopped
+
   prometheus:
     image: prom/prometheus:v3.1.0
     ports:
@@ -81,8 +114,12 @@ services:
     environment:
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:-grafana}
     volumes:
       - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
       - prometheus
+
+volumes:
+  timescaledb:

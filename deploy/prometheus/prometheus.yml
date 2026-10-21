@@ -7,3 +7,6 @@ scrape_configs:
   - job_name: detector
     static_configs:
       - targets: ["detector:9101"]
+  - job_name: processor
+    static_configs:
+      - targets: ["processor:9102"]
