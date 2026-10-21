@@ -31,16 +31,19 @@ services:
     logging: *logging
 
   gateway:
+    image: ghcr.io/kabilaymen/vigil-gateway:latest # built by CI
     ports: !reset []
     mem_limit: 64m
     logging: *logging
 
   detector:
+    image: ghcr.io/kabilaymen/vigil-detector:latest # built by CI
     ports: !reset []
     mem_limit: 64m
     logging: *logging
 
   simulator:
+    image: ghcr.io/kabilaymen/vigil-simulator:latest # built by CI
     mem_limit: 128m
     logging: *logging
 

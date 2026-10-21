@@ -37,8 +37,22 @@ jobs:
       - run: pip install ruff -r simulator/requirements.txt
       - run: ruff check simulator
       - run: python -m py_compile simulator/simulator.py
+  # Built here and pulled by the demo VM, which is too small to compile
+  # without disturbing what it runs.
   images:
+    needs: [gateway, detector, simulator]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
-      - run: docker compose build
+      - run: |
+          for svc in gateway detector simulator; do
+            docker build -t ghcr.io/kabilaymen/vigil-$svc:${{ github.sha }} -t ghcr.io/kabilaymen/vigil-$svc:latest               --label org.opencontainers.image.source=https://github.com/kabilaymen/vigil ./$svc
+          done
+      - name: Publish to GHCR (main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          for svc in gateway detector simulator; do docker push --all-tags ghcr.io/kabilaymen/vigil-$svc; done
