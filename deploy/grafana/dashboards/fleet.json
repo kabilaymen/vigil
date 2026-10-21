@@ -32,7 +32,7 @@
    "gridPos": {
     "x": 0,
     "y": 3,
-    "w": 16,
+    "w": 14,
     "h": 9
    },
    "targets": [
@@ -63,9 +63,9 @@
     "uid": "timescaledb"
    },
    "gridPos": {
-    "x": 16,
+    "x": 14,
     "y": 3,
-    "w": 8,
+    "w": 10,
     "h": 9
    },
    "targets": [
@@ -143,11 +143,14 @@
    ],
    "fieldConfig": {
     "defaults": {
-     "unit": "short"
+     "unit": "short",
+     "decimals": 0,
+     "min": 40,
+     "max": 50
     },
     "overrides": []
    },
-   "description": "Drops when the simulator crashes or stalls machines."
+   "description": "Dips when the simulator crashes or stalls a machine (it sends nothing during that bucket)."
   },
   {
    "type": "timeseries",

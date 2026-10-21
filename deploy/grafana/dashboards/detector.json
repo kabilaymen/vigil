@@ -1,27 +1,221 @@
 {
-  "uid": "vigil-detector",
-  "title": "Vigil — Failure detector",
-  "schemaVersion": 39,
-  "refresh": "5s",
-  "time": {"from": "now-15m", "to": "now"},
-  "panels": [
-    {"type": "stat", "title": "Machines down", "gridPos": {"x": 0, "y": 0, "w": 4, "h": 5},
-     "targets": [{"expr": "vigil_detector_machines_down"}]},
-    {"type": "stat", "title": "Machines tracked", "gridPos": {"x": 4, "y": 0, "w": 4, "h": 5},
-     "targets": [{"expr": "vigil_detector_machines_tracked"}]},
-    {"type": "stat", "title": "Detector lag", "gridPos": {"x": 8, "y": 0, "w": 4, "h": 5},
-     "fieldConfig": {"defaults": {"unit": "s"}},
-     "targets": [{"expr": "vigil_detector_consume_lag_seconds"}]},
-    {"type": "timeseries", "title": "Alerts / min", "gridPos": {"x": 12, "y": 0, "w": 12, "h": 5},
-     "targets": [{"expr": "sum by (type) (increase(vigil_detector_alerts_total[1m]))", "legendFormat": "{{type}}"}]},
-    {"type": "timeseries", "title": "Detection time (silence when declared) — p50 / p95", "gridPos": {"x": 0, "y": 5, "w": 12, "h": 8},
-     "fieldConfig": {"defaults": {"unit": "s"}},
-     "targets": [
-       {"expr": "histogram_quantile(0.5, sum by (le, type) (rate(vigil_detector_detection_seconds_bucket[10m])))", "legendFormat": "p50 {{type}}"},
-       {"expr": "histogram_quantile(0.95, sum by (le, type) (rate(vigil_detector_detection_seconds_bucket[10m])))", "legendFormat": "p95 {{type}}"}]},
-    {"type": "timeseries", "title": "φ per machine (threshold 8)", "gridPos": {"x": 12, "y": 5, "w": 12, "h": 8},
-     "fieldConfig": {"defaults": {"max": 20, "min": 0}},
-     "options": {"legend": {"showLegend": false}},
-     "targets": [{"expr": "clamp_max(vigil_detector_phi, 20)", "legendFormat": "{{machine}}"}]}
-  ]
+ "uid": "vigil-detector",
+ "title": "Vigil — Failure detector",
+ "schemaVersion": 39,
+ "refresh": "5s",
+ "time": {
+  "from": "now-15m",
+  "to": "now"
+ },
+ "panels": [
+  {
+   "type": "text",
+   "title": "",
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 3
+   },
+   "options": {
+    "mode": "markdown",
+    "content": "**Failure detection**: 50 simulated machines; one crashes every 45 s and one stalls (stays connected but goes silent) every 30 s. Crashes are caught through MQTT's Last Will, stalls by a phi accrual detector on each machine's heartbeats. [Code](https://github.com/kabilaymen/vigil) · other dashboards: Gateway, Fleet history (Dashboards menu)"
+   }
+  },
+  {
+   "type": "stat",
+   "title": "Machines down",
+   "gridPos": {
+    "x": 0,
+    "y": 3,
+    "w": 4,
+    "h": 5
+   },
+   "targets": [
+    {
+     "expr": "vigil_detector_machines_down"
+    }
+   ],
+   "description": "Machines currently suspected (silent) or disconnected. The simulator crashes one every 45 s and stalls one every 30 s."
+  },
+  {
+   "type": "stat",
+   "title": "Machines tracked",
+   "gridPos": {
+    "x": 4,
+    "y": 3,
+    "w": 4,
+    "h": 5
+   },
+   "targets": [
+    {
+     "expr": "vigil_detector_machines_tracked"
+    }
+   ]
+  },
+  {
+   "type": "stat",
+   "title": "Detector lag",
+   "gridPos": {
+    "x": 8,
+    "y": 3,
+    "w": 4,
+    "h": 5
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    }
+   },
+   "targets": [
+    {
+     "expr": "vigil_detector_consume_lag_seconds"
+    }
+   ],
+   "description": "How far behind the stream the detector is. Above 2 s it stops judging machines: the silence would be its own."
+  },
+  {
+   "type": "timeseries",
+   "title": "Alerts / min",
+   "gridPos": {
+    "x": 12,
+    "y": 3,
+    "w": 12,
+    "h": 5
+   },
+   "targets": [
+    {
+     "expr": "sum by (type) (increase(vigil_detector_alerts_total[1m]))",
+     "legendFormat": "{{type}}"
+    }
+   ],
+   "description": "suspected = silent but still connected (phi accrual); connection_lost = the broker published the machine's Last Will."
+  },
+  {
+   "type": "bargauge",
+   "title": "Stalled machines: time to detection (last hour)",
+   "gridPos": {
+    "x": 0,
+    "y": 8,
+    "w": 6,
+    "h": 8
+   },
+   "description": "Silence since the machine's last message when the phi accrual detector declared it, counted per interval.",
+   "targets": [
+    {
+     "expr": "sum by (le) (increase(vigil_detector_detection_seconds_bucket{type=\"suspected\"}[1h]))",
+     "legendFormat": "≤ {{le}} s",
+     "format": "heatmap",
+     "instant": true
+    }
+   ],
+   "options": {
+    "orientation": "horizontal",
+    "displayMode": "basic",
+    "showUnfilled": true,
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "valueMode": "color",
+    "namePlacement": "left"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "none",
+     "decimals": 0,
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "blue"
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "bargauge",
+   "title": "Crashed machines: time to detection (last hour)",
+   "gridPos": {
+    "x": 6,
+    "y": 8,
+    "w": 6,
+    "h": 8
+   },
+   "description": "Silence since the machine's last message when its Last Will arrived, counted per interval.",
+   "targets": [
+    {
+     "expr": "sum by (le) (increase(vigil_detector_detection_seconds_bucket{type=\"connection_lost\"}[1h]))",
+     "legendFormat": "≤ {{le}} s",
+     "format": "heatmap",
+     "instant": true
+    }
+   ],
+   "options": {
+    "orientation": "horizontal",
+    "displayMode": "basic",
+    "showUnfilled": true,
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "valueMode": "color",
+    "namePlacement": "left"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "none",
+     "decimals": 0,
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "blue"
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "type": "timeseries",
+   "title": "φ of the 5 most suspicious machines (alert at 8)",
+   "gridPos": {
+    "x": 12,
+    "y": 8,
+    "w": 12,
+    "h": 8
+   },
+   "description": "Suspicion level, recomputed every 200 ms from each machine's own heartbeat rhythm. A stalled machine climbs past 8 in about a second.",
+   "targets": [
+    {
+     "expr": "topk(5, clamp_max(vigil_detector_phi, 20))",
+     "legendFormat": "{{machine}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "min": 0,
+     "max": 20,
+     "custom": {
+      "thresholdsStyle": {
+       "mode": "line"
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "transparent",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 8
+       }
+      ]
+     }
+    },
+    "overrides": []
+   }
+  }
+ ]
 }
