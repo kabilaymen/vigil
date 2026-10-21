@@ -92,109 +92,187 @@
    "description": "suspected = silent but still connected (phi accrual); connection_lost = the broker published the machine's Last Will."
   },
   {
-   "type": "bargauge",
-   "title": "Stalled machines: time to detection (last hour)",
+   "type": "stat",
+   "title": "Stalled machines detected within 1.5 s (last hour)",
    "gridPos": {
     "x": 0,
     "y": 8,
     "w": 6,
     "h": 8
    },
-   "description": "Silence since the machine's last message when the phi accrual detector declared it, counted per interval.",
+   "description": "Share of phi-accrual alerts raised within 1.5 s of the machine's last message. The slow ones are machines that stall right after reconnecting, while the detector relearns their rhythm.",
    "targets": [
     {
-     "expr": "sum by (le) (increase(vigil_detector_detection_seconds_bucket{type=\"suspected\"}[1h]))",
-     "legendFormat": "≤ {{le}} s",
-     "format": "heatmap",
-     "instant": true
+     "expr": "sum(increase(vigil_detector_detection_seconds_bucket{type=\"suspected\",le=\"1.5\"}[1h])) / sum(increase(vigil_detector_detection_seconds_count{type=\"suspected\"}[1h]))",
+     "instant": true,
+     "legendFormat": "within 1.5 s"
+    },
+    {
+     "expr": "round(sum(increase(vigil_detector_detection_seconds_count{type=\"suspected\"}[1h])))",
+     "instant": true,
+     "legendFormat": "detections"
     }
    ],
    "options": {
-    "orientation": "horizontal",
-    "displayMode": "basic",
-    "showUnfilled": true,
     "reduceOptions": {
      "calcs": [
       "lastNotNull"
      ]
     },
-    "valueMode": "color",
-    "namePlacement": "left"
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value_and_name",
+    "orientation": "vertical"
    },
    "fieldConfig": {
     "defaults": {
-     "unit": "none",
-     "decimals": 0,
      "color": {
       "mode": "fixed",
-      "fixedColor": "blue"
+      "fixedColor": "green"
      }
     },
-    "overrides": []
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "within 1.5 s"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "percentunit"
+       },
+       {
+        "id": "decimals",
+        "value": 0
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "detections"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "none"
+       },
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "text"
+        }
+       }
+      ]
+     }
+    ]
    }
   },
   {
-   "type": "bargauge",
-   "title": "Crashed machines: time to detection (last hour)",
+   "type": "stat",
+   "title": "Crashed machines detected within 1.5 s (last hour)",
    "gridPos": {
     "x": 6,
     "y": 8,
     "w": 6,
     "h": 8
    },
-   "description": "Silence since the machine's last message when its Last Will arrived, counted per interval.",
+   "description": "Share of Last Will alerts within 1.5 s of the machine's last message. A machine that was already stalled when it crashed counts as slow.",
    "targets": [
     {
-     "expr": "sum by (le) (increase(vigil_detector_detection_seconds_bucket{type=\"connection_lost\"}[1h]))",
-     "legendFormat": "≤ {{le}} s",
-     "format": "heatmap",
-     "instant": true
+     "expr": "sum(increase(vigil_detector_detection_seconds_bucket{type=\"connection_lost\",le=\"1.5\"}[1h])) / sum(increase(vigil_detector_detection_seconds_count{type=\"connection_lost\"}[1h]))",
+     "instant": true,
+     "legendFormat": "within 1.5 s"
+    },
+    {
+     "expr": "round(sum(increase(vigil_detector_detection_seconds_count{type=\"connection_lost\"}[1h])))",
+     "instant": true,
+     "legendFormat": "detections"
     }
    ],
    "options": {
-    "orientation": "horizontal",
-    "displayMode": "basic",
-    "showUnfilled": true,
     "reduceOptions": {
      "calcs": [
       "lastNotNull"
      ]
     },
-    "valueMode": "color",
-    "namePlacement": "left"
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value_and_name",
+    "orientation": "vertical"
    },
    "fieldConfig": {
     "defaults": {
-     "unit": "none",
-     "decimals": 0,
      "color": {
       "mode": "fixed",
-      "fixedColor": "blue"
+      "fixedColor": "green"
      }
     },
-    "overrides": []
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "within 1.5 s"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "percentunit"
+       },
+       {
+        "id": "decimals",
+        "value": 0
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "detections"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "none"
+       },
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "text"
+        }
+       }
+      ]
+     }
+    ]
    }
   },
   {
    "type": "timeseries",
-   "title": "φ of the 5 most suspicious machines (alert at 8)",
+   "title": "Highest φ in the fleet (alert at 8)",
    "gridPos": {
     "x": 12,
     "y": 8,
     "w": 12,
     "h": 8
    },
-   "description": "Suspicion level, recomputed every 200 ms from each machine's own heartbeat rhythm. A stalled machine climbs past 8 in about a second.",
+   "description": "Suspicion level of the most suspicious machine, recomputed every 200 ms from each machine's own heartbeat rhythm. Each spike above 8 is a stalled or crashed machine.",
    "targets": [
     {
-     "expr": "topk(5, clamp_max(vigil_detector_phi, 20))",
-     "legendFormat": "{{machine}}"
+     "expr": "max(clamp_max(vigil_detector_phi, 20))",
+     "legendFormat": "highest φ"
     }
    ],
    "fieldConfig": {
     "defaults": {
      "min": 0,
      "max": 20,
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "orange"
+     },
      "custom": {
       "thresholdsStyle": {
        "mode": "line"
