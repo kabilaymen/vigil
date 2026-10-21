@@ -1,0 +1,80 @@
+# Production overrides for the public demo (one small VM behind Caddy, see
+# github.com/kabilaymen/quorum/tree/main/deploy/edge):
+#   docker network create edge   # once
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# Nothing is published on the host: MQTT, Kafka and Prometheus stay private and
+# only Grafana (read-only) is reachable, through Caddy.
+
+x-logging: &logging
+  driver: json-file
+  options: {max-size: "10m", max-file: "3"}
+
+services:
+  mosquitto:
+    ports: !reset []
+    restart: unless-stopped
+    mem_limit: 64m
+    logging: *logging
+
+  kafka:
+    ports: !reset []
+    environment:
+      # The external listener only served the host in development.
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_HEAP_OPTS: -Xms384m -Xmx384m
+      KAFKA_LOG_RETENTION_HOURS: 6
+      KAFKA_LOG_RETENTION_BYTES: 104857600
+    restart: unless-stopped
+    mem_limit: 768m
+    logging: *logging
+
+  gateway:
+    ports: !reset []
+    mem_limit: 64m
+    logging: *logging
+
+  detector:
+    ports: !reset []
+    mem_limit: 64m
+    logging: *logging
+
+  simulator:
+    mem_limit: 128m
+    logging: *logging
+
+  prometheus:
+    ports: !reset []
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - prometheus:/prometheus
+    restart: unless-stopped
+    mem_limit: 256m
+    logging: *logging
+
+  grafana:
+    ports: !reset []
+    environment:
+      GF_SERVER_ROOT_URL: https://vigil.aymenkabil.me
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set it in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/detector.json
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+    restart: unless-stopped
+    mem_limit: 256m
+    logging: *logging
+    networks:
+      default: {}
+      edge:
+        aliases: [vigil-grafana]
+
+volumes:
+  prometheus:
+
+networks:
+  edge:
+    external: true
