@@ -1,0 +1,35 @@
+name: loadtest
+# Ingestion load test on a fresh GitHub runner (not on a laptop, not on the
+# demo VM): broker, Kafka, gateway and load generator share one machine, so
+# the numbers are a lower bound for a real deployment, and comparable run to run.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["loadtest/**", "gateway/**", ".github/workflows/loadtest.yml"]
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: loadtest/go.mod
+      - name: Start broker, Kafka and gateway
+        run: |
+          docker compose up -d --build --wait mosquitto kafka gateway
+          docker compose exec -T kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 \
+            --create --if-not-exists --topic telemetry --partitions 6 --replication-factor 1
+      - name: Load test
+        working-directory: loadtest
+        run: |
+          go run . -steps 250,1000,2000,4000,8000 -rate 2 -duration 20s -drain 10s -json results.json \
+            -env "GitHub Actions runner, $(nproc) vCPU, $(free -g | awk '/Mem/{print $2}') GB; broker, Kafka, gateway and load generator on the same machine"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: loadtest-results
+          path: loadtest/results.json
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --tail 100 gateway kafka mosquitto
