@@ -218,7 +218,7 @@
       "uid": "prometheus"
      },
      "refId": "A",
-     "expr": "time() - vigil_processor_last_bucket_timestamp_seconds",
+     "expr": "time() - (vigil_processor_last_bucket_timestamp_seconds > 0)",
      "legendFormat": "age of the newest bucket written"
     },
     {
