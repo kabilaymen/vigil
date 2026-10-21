@@ -78,7 +78,9 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./deploy/timescaledb:/docker-entrypoint-initdb.d:ro
+      # One file, not the whole directory: that would hide the image's own
+      # init scripts, including the one that installs the extension.
+      - ./deploy/timescaledb/10-grafana-role.sh:/docker-entrypoint-initdb.d/010_grafana_role.sh:ro
       - timescaledb:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U vigil -d vigil"]

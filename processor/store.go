@@ -12,6 +12,9 @@ import (
 )
 
 const schema = `
+-- Normally installed by the image at init; repeated so that a database
+-- initialised without it still works.
+CREATE EXTENSION IF NOT EXISTS timescaledb;
 CREATE TABLE IF NOT EXISTS machine_metrics_10s (
 	bucket         timestamptz      NOT NULL,
 	machine        text             NOT NULL,
