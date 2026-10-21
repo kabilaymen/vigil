@@ -60,7 +60,9 @@ services:
   processor:
     image: ghcr.io/kabilaymen/vigil-processor:latest # built by CI
     ports: !reset []
-    mem_limit: 64m
+    environment:
+      GOMEMLIMIT: 96MiB # let the GC work against the container limit
+    mem_limit: 128m
     logging: *logging
 
   prometheus:

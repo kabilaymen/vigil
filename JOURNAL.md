@@ -80,6 +80,9 @@ Deployed, it failed twice on the first day:
   end (high watermark) — or after 30 s with no fetch at all. The crash test missed it because it
   read all partitions in lockstep, one record at a time; it now reads them in random batches, like
   Kafka, and fails without the fix (as does a test that replays one partition after another).
+- Then it was **OOM-killed** while catching up (the kernel log shows the memory cgroup kill at
+  64 MiB): franz-go's default fetch size is 50 MiB. Fetches are now capped at 4 MiB (1 MiB per
+  partition), the limit is 128 MiB, and `GOMEMLIMIT` tells the Go GC about it.
 
 The SQL runs against a real TimescaleDB in a test (`TEST_DATABASE_URL`): idempotent schema, upsert,
 progress read back. Grafana reads through a read-only role created at database initialisation.

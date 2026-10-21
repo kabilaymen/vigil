@@ -241,6 +241,10 @@ func main() {
 		kgo.ConsumeTopics(topic),
 		kgo.DisableAutoCommit(), // offsets live in the database, with the rows
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()),
+		// Bounded fetch buffers: catching up hours of retained data with the
+		// defaults (50 MiB per fetch) got the process OOM-killed at 64 MiB.
+		kgo.FetchMaxBytes(4<<20),
+		kgo.FetchMaxPartitionBytes(1<<20),
 		kgo.BlockRebalanceOnPoll(), // rebalances only between two batches
 		kgo.OnPartitionsAssigned(p.assigned),
 		kgo.OnPartitionsRevoked(p.revoked),
