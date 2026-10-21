@@ -8,6 +8,8 @@ disconnections and anomalies in seconds — with every stage instrumented and lo
 > Status: ingestion pipeline and failure detector working end to end.
 > Next: stream processor + TimescaleDB, load-test report, k3s deployment.
 
+How it was built, the bugs found on the way and how they were fixed: [`JOURNAL.md`](JOURNAL.md).
+
 ## Architecture
 
 ```
