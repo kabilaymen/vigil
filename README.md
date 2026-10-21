@@ -8,7 +8,8 @@ stage instrumented.
 
 > Status: ingestion, failure detector and stream processor working end to end; deployed on a small
 > cloud VM with a simulated fleet of 50 machines: **[live dashboards](https://vigil.aymenkabil.me)**.
-> Next: load-test report, Slurm job-monitoring mode.
+> Load-tested on a CI runner: **16,000 msg/s from 8,000 simulated machines with no loss**
+> ([report](bench/LOADTEST.md)). Next: detector and processor under load, Slurm job-monitoring mode.
 
 How it was built, the bugs found on the way and how they were fixed: [`JOURNAL.md`](JOURNAL.md).
 
@@ -122,7 +123,8 @@ Tune the fleet in `docker-compose.yml` (`--machines`, `--rate`, `--crash-every`,
 - [x] Stream processor: windowed aggregates into TimescaleDB, fleet dashboard
 - [x] Failure detector: phi accrual + Last Will, alerts topic, detection-time histogram
 - [x] Stall scenario (connected but silent machine)
-- [ ] Load-test harness and benchmark report (throughput, p99, detection time vs. load)
+- [x] Load-test harness and report for the ingestion path ([bench/LOADTEST.md](bench/LOADTEST.md))
+- [ ] Detection time and processor lag under load
 - [ ] Slurm job-monitoring mode
 - [x] CI/CD: images built by GitHub Actions, pulled by the VM; public read-only dashboards
 - [ ] k3s

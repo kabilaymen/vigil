@@ -87,6 +87,17 @@ Deployed, it failed twice on the first day:
 The SQL runs against a real TimescaleDB in a test (`TEST_DATABASE_URL`): idempotent schema, upsert,
 progress read back. Grafana reads through a read-only role created at database initialisation.
 
+## 4. Load test
+
+Run on a GitHub Actions runner rather than on my laptop or the demo VM: a clean machine, the same
+one every run, and nothing else on it. Steps from 250 to 8,000 machines at 2 msg/s; no loss up to
+16,000 msg/s, p99 flat around 10–16 ms up to 8,000 msg/s and ~194 ms at 16,000 msg/s, where the
+single 4-vCPU machine (broker + Kafka + gateway + generator) approaches saturation
+([bench/LOADTEST.md](bench/LOADTEST.md)).
+
+Small thing learned on the way: the workflow's summary and logs need a GitHub login even on a public
+repository, but annotations do not, so the results are also published as annotations.
+
 ## Not done yet
 
-- No load test: the numbers above are from a 50-machine fleet, not a stress run.
+- Detection time and processor lag under load (the load test covers the ingestion path).
