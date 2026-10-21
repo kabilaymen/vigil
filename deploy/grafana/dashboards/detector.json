@@ -93,7 +93,7 @@
   },
   {
    "type": "stat",
-   "title": "Stalled machines detected within 1.5 s (last hour)",
+   "title": "Stalls caught within 1.5 s (last hour)",
    "gridPos": {
     "x": 0,
     "y": 8,
@@ -172,7 +172,7 @@
   },
   {
    "type": "stat",
-   "title": "Crashed machines detected within 1.5 s (last hour)",
+   "title": "Crashes caught within 1.5 s (last hour)",
    "gridPos": {
     "x": 6,
     "y": 8,
