@@ -200,6 +200,14 @@ func main() {
 	}
 
 	report(os.Stdout, results, *env, *rate, *duration)
+	if os.Getenv("GITHUB_ACTIONS") == "true" {
+		// Annotations are public on a public repository (logs need a login).
+		fmt.Printf("::notice title=Load test environment::%s\n", *env)
+		for _, r := range results {
+			fmt.Printf("::notice title=Load test, %d machines::offered %.0f msg/s, delivered %.0f msg/s, loss %.2f%%, e2e p50 %.1f ms, p99 %.1f ms, p99.9 %.1f ms, max %.0f ms\n",
+				r.Machines, r.Offered, r.Delivered, r.LossPct, r.P50ms, r.P99ms, r.P999ms, r.MaxMs)
+		}
+	}
 	if p := os.Getenv("GITHUB_STEP_SUMMARY"); p != "" {
 		if f, err := os.OpenFile(p, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o644); err == nil {
 			report(f, results, *env, *rate, *duration)
