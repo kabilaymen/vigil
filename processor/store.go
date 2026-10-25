@@ -25,7 +25,10 @@ CREATE TABLE IF NOT EXISTS machine_metrics_10s (
 	throughput_avg double precision NOT NULL,
 	PRIMARY KEY (machine, bucket)
 );
-SELECT create_hypertable('machine_metrics_10s', 'bucket', if_not_exists => TRUE);
+-- Retention drops whole chunks: with the default 7-day chunks, 3 days of
+-- retention kept up to ~10. Six-hour chunks keep it close to 3 days.
+SELECT create_hypertable('machine_metrics_10s', 'bucket', chunk_time_interval => INTERVAL '6 hours', if_not_exists => TRUE);
+SELECT set_chunk_time_interval('machine_metrics_10s', INTERVAL '6 hours');
 SELECT add_retention_policy('machine_metrics_10s', INTERVAL '3 days', if_not_exists => TRUE);
 
 -- Where each partition must be consumed from, written in the same transaction

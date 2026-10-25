@@ -26,6 +26,11 @@ services:
       KAFKA_HEAP_OPTS: -Xms384m -Xmx384m
       KAFKA_LOG_RETENTION_HOURS: 6
       KAFKA_LOG_RETENTION_BYTES: 104857600
+      # Retention only deletes closed segments. With the defaults (1 GiB
+      # segments, rolled every 7 days) nothing ever closed at this traffic and
+      # the log reached 3.6 GB; small, hourly segments make retention real.
+      KAFKA_LOG_SEGMENT_BYTES: 16777216
+      KAFKA_LOG_ROLL_HOURS: 1
     restart: unless-stopped
     mem_limit: 768m
     logging: *logging
