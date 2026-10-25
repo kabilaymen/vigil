@@ -18,3 +18,4 @@ datasources:
       sslmode: disable
       timescaledb: true
       postgresVersion: 1600
+      maxOpenConns: 4 # the role allows 5

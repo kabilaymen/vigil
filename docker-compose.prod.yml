@@ -76,6 +76,9 @@ services:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=7d
+      # Dashboards are public: cap what a single query may cost.
+      - --query.timeout=10s
+      - --query.max-samples=5000000
     volumes:
       - prometheus:/prometheus
     restart: unless-stopped
@@ -91,6 +94,9 @@ services:
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/detector.json
       GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:?set it in .env}
       GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_AUTH_ANONYMOUS_HIDE_VERSION: "true"
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_METRICS_ENABLED: "false"
     restart: unless-stopped
     mem_limit: 256m
     logging: *logging

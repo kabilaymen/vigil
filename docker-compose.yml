@@ -103,14 +103,14 @@ services:
     restart: unless-stopped
 
   prometheus:
-    image: prom/prometheus:v3.1.0
+    image: prom/prometheus:v3.5.5
     ports:
       - "9090:9090"
     volumes:
       - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
 
   grafana:
-    image: grafana/grafana:11.4.0
+    image: grafana/grafana:12.4.13
     ports:
       - "3000:3000"
     environment:
