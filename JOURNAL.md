@@ -98,6 +98,21 @@ single 4-vCPU machine (broker + Kafka + gateway + generator) approaches saturati
 Small thing learned on the way: the workflow's summary and logs need a GitHub login even on a public
 repository, but annotations do not, so the results are also published as annotations.
 
+## 5. Retention that did not retain
+
+Four days after the deployment, an audit of everything that grows found Kafka holding **3.6 GB**
+despite `log.retention.hours=6` and `log.retention.bytes=100 MB`. Kafka only deletes *closed*
+segments, and with the defaults a segment closes at 1 GiB or after 7 days: at 100 msg/s, none ever
+closed, so nothing was ever deleted. Segments are now 16 MiB and roll every hour; the broker
+config was checked with `kafka-configs --describe`.
+
+Same pattern in TimescaleDB: the retention policy ran every day, successfully, and 210,000 rows older
+than 3 days were still there. Retention drops whole chunks, and the default chunk is 7 days, so a
+3-day policy really kept up to ~10. Chunks are now 6 hours.
+
+The same audit removed 4 GB of old images and build cache that each deployment had left behind
+(the deploy script now prunes them).
+
 ## Not done yet
 
 - Detection time and processor lag under load (the load test covers the ingestion path).
