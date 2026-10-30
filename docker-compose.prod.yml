@@ -24,6 +24,9 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
       KAFKA_HEAP_OPTS: -Xms384m -Xmx384m
+      # The image's default log directory is /tmp, inside the container: the
+      # retained data was lost whenever the container was recreated.
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
       KAFKA_LOG_RETENTION_HOURS: 6
       KAFKA_LOG_RETENTION_BYTES: 104857600
       # Retention only deletes closed segments. With the defaults (1 GiB
@@ -31,6 +34,7 @@ services:
       # the log reached 3.6 GB; small, hourly segments make retention real.
       KAFKA_LOG_SEGMENT_BYTES: 16777216
       KAFKA_LOG_ROLL_HOURS: 1
+    volumes: ["kafka:/var/lib/kafka/data"]
     restart: unless-stopped
     mem_limit: 768m
     logging: *logging
@@ -107,6 +111,7 @@ services:
 
 volumes:
   prometheus:
+  kafka:
 
 networks:
   edge:
