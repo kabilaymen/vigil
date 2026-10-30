@@ -113,6 +113,18 @@ than 3 days were still there. Retention drops whole chunks, and the default chun
 The same audit removed 4 GB of old images and build cache that each deployment had left behind
 (the deploy script now prunes them).
 
+## 6. Kafka's log was not where I thought
+
+The compose file mounted a volume at /var/lib/kafka/data, but the apache/kafka image writes its
+log under /tmp/kafka-logs unless told otherwise: the volume stayed empty and the retained data
+lived in the container's own layer, gone each time the container was recreated. `KAFKA_LOG_DIRS`
+now points at the volume.
+
+Moving it recreated the topic, and the consumers (processor, detector) then failed every fetch
+with UNKNOWN_TOPIC_ID: franz-go kept the old topic's ID and did not pick up the new one. A restart
+fixed it, and the processor resumed from the start of the new log (its stored offsets were past
+the end). Recreating the topic should be rare now; if it happens, restart the consumers.
+
 ## Not done yet
 
 - Detection time and processor lag under load (the load test covers the ingestion path).
