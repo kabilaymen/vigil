@@ -6,10 +6,13 @@ Vigil ingests machine telemetry over MQTT, streams it through Kafka, detects dea
 machines in about a second, and keeps a 10-second history per machine in TimescaleDB — with every
 stage instrumented.
 
-> Status: ingestion, failure detector and stream processor working end to end; deployed on a small
-> cloud VM with a simulated fleet of 50 machines: **[live dashboards](https://vigil.aymenkabil.me)**.
-> Load-tested on a CI runner: **16,000 msg/s from 8,000 simulated machines with no loss**
-> ([report](bench/LOADTEST.md)). Next: detector and processor under load, Slurm job-monitoring mode.
+> Status: ingestion, failure detector and stream processor working end to end. The full pipeline ran
+> on a small cloud VM with a simulated fleet of 50 machines from October to November 2026.
+> **[Interactive demo](https://vigil.aymenkabil.me)**: the real detector (`detector/tracker`,
+> `detector/phi`) compiled to WebAssembly and running in your browser, with the measurements
+> recorded in production. Load-tested on a CI runner: **16,000 msg/s from 8,000 simulated machines
+> with no loss** ([report](bench/LOADTEST.md)). Next: detector and processor under load, Slurm
+> job-monitoring mode.
 
 How it was built, the bugs found on the way and how they were fixed: [`JOURNAL.md`](JOURNAL.md).
 

@@ -1,0 +1,96 @@
+:root {
+  --bg: #f6f5f2; --paper: #ffffff; --ink: #1c1c1a; --soft: #5f5e5a; --rule: #dedcd6;
+  --healthy: #2f7d55; --suspected: #c07a1c; --lost: #b3402e; --warming: #a3a19b; --link: #2c5d8f;
+  --tile-ink: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #161614; --paper: #1f1f1c; --ink: #ecebe6; --soft: #a9a7a0; --rule: #34332f;
+    --healthy: #5fbf8b; --suspected: #e0a24f; --lost: #e88a78; --warming: #6f6d67; --link: #8db6e2;
+    --tile-ink: #141412; }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: var(--link); text-underline-offset: 2px; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 12px; letter-spacing: -.01em; }
+h2 { font-size: 1.05rem; margin: 0 0 10px; }
+.small { font-size: .88rem; color: var(--soft); }
+.soft { color: var(--soft); font-weight: 400; }
+
+.top { display: flex; justify-content: space-between; align-items: center; padding-top: 18px; padding-bottom: 18px; }
+.brand { font-weight: 700; color: var(--ink); text-decoration: none; font-size: 1.1rem; }
+nav a { margin-left: 18px; color: var(--soft); text-decoration: none; font-size: .95rem; }
+nav a:hover { color: var(--ink); }
+
+.intro { max-width: 740px; margin: 24px 0 28px; }
+.intro p { margin: 0; color: var(--soft); font-size: 1.05rem; }
+
+.demo { background: var(--paper); border: 1px solid var(--rule); border-radius: 14px;
+  display: grid; grid-template-columns: 1fr 1fr; grid-template-areas: "stage side" "bar bar"; }
+.stage { grid-area: stage; padding: 20px; border-right: 1px solid var(--rule); }
+.side { grid-area: side; padding: 20px; }
+.bar { grid-area: bar; display: flex; flex-wrap: wrap; gap: 12px 22px; align-items: center;
+  padding: 12px 20px; border-top: 1px solid var(--rule); font-size: .92rem; color: var(--soft); }
+@media (max-width: 820px) {
+  .demo { grid-template-columns: 1fr; grid-template-areas: "stage" "side" "bar"; }
+  .stage { border-right: 0; border-bottom: 1px solid var(--rule); }
+}
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .85rem; color: var(--soft); margin-bottom: 12px; }
+.sw { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.fleet { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; }
+.m { aspect-ratio: 1; border-radius: 6px; border: 0; padding: 0; font: 600 .72rem system-ui, sans-serif;
+  color: var(--tile-ink); display: grid; place-items: center; cursor: pointer; position: relative; }
+.m.selected { outline: 2px solid var(--ink); outline-offset: 2px; }
+/* On a phone, ten tiles a row would be too small to tap reliably. */
+@media (max-width: 520px) {
+  .stage, .side { padding: 16px 14px; }
+  .fleet { grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .m { font-size: .8rem; }
+}
+.m.truth::after { content: ""; position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--tile-ink); }
+.healthy { background: var(--healthy); } .suspected { background: var(--suspected); }
+.lost { background: var(--lost); } .warming { background: var(--warming); }
+.meta { margin: 12px 0 0; font-size: .88rem; color: var(--soft); }
+
+.caption { margin: 6px 0 12px; min-height: 4.8em; }
+canvas { width: 100%; height: auto; display: block; }
+#chart { background: var(--bg); border-radius: 10px; }
+.steps { list-style: none; counter-reset: s; padding: 0; margin: 18px 0 0; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 26px auto; gap: 2px 10px; margin-bottom: 12px; }
+.steps li::before { content: counter(s); grid-row: span 2; width: 24px; height: 24px; border-radius: 50%;
+  border: 1px solid var(--rule); color: var(--soft); font-size: .8rem; display: grid; place-items: center; margin-top: 4px; }
+.steps button { justify-self: start; }
+.steps span { font-size: .88rem; color: var(--soft); }
+
+button { font: inherit; font-size: .92rem; padding: 6px 14px; border-radius: 8px; border: 1px solid var(--rule);
+  background: var(--bg); color: var(--ink); cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--ink); }
+button:disabled { opacity: .45; cursor: default; }
+label { display: inline-flex; gap: 8px; align-items: center; }
+select { font: inherit; font-size: .92rem; background: var(--bg); color: var(--ink); border: 1px solid var(--rule); border-radius: 6px; padding: 3px 6px; }
+
+.explain { max-width: 760px; margin: 36px 0; }
+.alerts-title { margin-top: 22px; }
+.stage .events { max-height: 300px; }
+.aside-text p { margin: 0 0 12px; color: var(--soft); font-size: .95rem; }
+.events { list-style: none; padding: 0; margin: 0; max-height: 380px; overflow-y: auto; font-size: .9rem; }
+.events li { display: grid; grid-template-columns: 58px 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--rule); }
+.events time { color: var(--soft); font-variant-numeric: tabular-nums; }
+.events .a-suspected b { color: var(--suspected); } .events .a-connection_lost b { color: var(--lost); }
+.events .a-recovered b, .events .a-reconnected b { color: var(--healthy); }
+
+.prod { border-top: 1px solid var(--rule); padding-top: 32px; margin-bottom: 24px; }
+.prod > p { max-width: 760px; color: var(--soft); }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 22px 0; }
+@media (max-width: 640px) { .stats { grid-template-columns: 1fr; } }
+.stat { background: var(--paper); border: 1px solid var(--rule); border-radius: 12px; padding: 16px; }
+.stat b { display: block; font-size: 1.6rem; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.stat span { font-size: .9rem; color: var(--soft); }
+.charts { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 820px) { .charts { grid-template-columns: 1fr; } }
+figure { margin: 0; }
+figure canvas { background: var(--paper); border: 1px solid var(--rule); border-radius: 12px; }
+figcaption { font-size: .88rem; color: var(--soft); margin-top: 6px; }
+footer { padding-top: 24px; padding-bottom: 40px; color: var(--soft); font-size: .9rem; border-top: 1px solid var(--rule); }

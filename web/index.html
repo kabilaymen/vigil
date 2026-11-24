@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vigil: spotting dead and frozen machines</title>
+  <meta name="description" content="Vigil's failure detector watching 50 simulated machines in your browser. Crash one or freeze one and see how fast it is noticed.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="wrap top">
+  <a class="brand" href="https://github.com/kabilaymen/vigil">Vigil</a>
+  <nav>
+    <a href="https://github.com/kabilaymen/vigil">Code</a>
+    <a href="https://github.com/kabilaymen/vigil/blob/main/JOURNAL.md">Journal</a>
+    <a href="https://github.com/kabilaymen/vigil/blob/main/bench/LOADTEST.md">Load test</a>
+  </nav>
+</header>
+
+<main class="wrap">
+  <section class="intro">
+    <h1>Spotting a machine that stopped talking</h1>
+    <p>Vigil monitors a fleet of production machines that report their state over MQTT. A machine can
+      fail in two ways: it crashes and its connection drops, or its software freezes while the
+      connection stays open. The second one is the hard case. The detector below is Vigil's own code,
+      compiled to WebAssembly, watching 50 simulated machines in your browser.</p>
+  </section>
+
+  <section class="demo" aria-label="Interactive fleet">
+    <div class="stage">
+      <div class="legend">
+        <span><i class="sw healthy"></i>healthy</span>
+        <span><i class="sw suspected"></i>suspected</span>
+        <span><i class="sw lost"></i>disconnected</span>
+        <span><i class="sw warming"></i>learning its rhythm</span>
+      </div>
+      <div class="fleet" id="fleet" aria-label="Machines"></div>
+      <p class="meta" id="fleetLine"></p>
+      <h2 class="alerts-title">Alerts</h2>
+      <p class="small" id="tally"></p>
+      <ol class="events" id="alerts"></ol>
+    </div>
+
+    <aside class="side">
+      <div class="panel-head">
+        <h2><span id="selId">m-0000</span> <span class="soft" id="selType"></span></h2>
+      </div>
+      <p class="caption" id="caption"></p>
+      <canvas id="chart" width="560" height="220" aria-label="Suspicion level over the last 30 seconds"></canvas>
+      <p class="small">Suspicion level φ over the last 30 seconds. The dashed line is the alert threshold.</p>
+      <ol class="steps">
+        <li><button id="stall">Freeze this machine</button>
+          <span>It keeps its connection but stops sending. Watch φ climb: the alert fires about a second after its last message.</span></li>
+        <li><button id="crash">Crash this machine</button>
+          <span>Its connection drops without a goodbye, so the broker announces it at once. It comes back after 20 s.</span></li>
+      </ol>
+    </aside>
+
+    <div class="bar">
+      <label><input type="checkbox" id="chaos" checked> Random failures as in production: a crash every 45 s, a freeze every 30 s</label>
+      <label>Speed
+        <select id="speed"><option value="1" selected>Real time</option><option value="4">Fast</option></select>
+      </label>
+      <button id="pause">Pause</button>
+    </div>
+  </section>
+
+  <section class="explain">
+    <div class="aside-text">
+      <h2>How the detector decides</h2>
+      <p>A crash is easy to see. The machine's TCP connection closes without an MQTT disconnect, and the
+        broker publishes the "last will" the machine registered when it connected. Vigil reports it at
+        once.</p>
+      <p>A frozen machine is invisible to the broker: the MQTT client keeps answering pings from its own
+        thread, so the connection looks fine. Vigil looks at the rhythm instead. It keeps the last 100
+        gaps between a machine's messages and, at any moment, asks how unlikely the current silence
+        would be for a healthy machine. That number is φ. At φ = 8 the silence has less than a one in a
+        hundred million chance of being normal, and the machine is reported.</p>
+      <p>Because the threshold comes from each machine's own rhythm, a machine that reports every 5
+        seconds is not flagged after 2 seconds of quiet, while one that reports twice a second is.</p>
+      <p class="small">The machines and the arrival times of their messages are simulated here. The MQTT
+        broker, Kafka, TimescaleDB and the dashboards are not on this page: they ran in production,
+        below.</p>
+    </div>
+  </section>
+
+  <section class="prod">
+    <h2>How it ran in production</h2>
+    <p>The full pipeline, from the MQTT broker through a Go gateway and Kafka to the detector and a
+      stream processor writing to TimescaleDB, ran on a small cloud VM from October to November 2026,
+      with the same random crashes and freezes as above. Over its last seven days:</p>
+    <div class="stats" id="stats"></div>
+    <div class="charts">
+      <figure><canvas id="ingestChart" width="640" height="220"></canvas>
+        <figcaption>Messages received per second</figcaption></figure>
+      <figure><canvas id="latChart" width="640" height="220"></canvas>
+        <figcaption>Time from the MQTT broker to Kafka, 99th percentile, in milliseconds</figcaption></figure>
+    </div>
+    <p class="small">Numbers come from the pipeline's own Prometheus metrics, exported on 24 November 2026.
+      The ingestion path was also load-tested at 16,000 messages per second from 8,000 machines without
+      losing any (<a href="https://github.com/kabilaymen/vigil/blob/main/bench/LOADTEST.md">report</a>).</p>
+  </section>
+</main>
+
+<footer class="wrap">Built by <a href="https://aymenkabil.me">Aymen Kabil</a>. Source on <a href="https://github.com/kabilaymen/vigil">GitHub</a>.</footer>
+
+<script src="wasm_exec.js"></script>
+<script src="app.js"></script>
+<script src="production.js"></script>
+</body>
+</html>
